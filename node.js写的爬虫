@@ -1,0 +1,57 @@
+let [axios, fs] = [require('axios'), require('fs')]
+let cheerio = require('cheerio')
+const { error } = require('console')
+const { Stream } = require('stream')
+let Url = "https://www.bilibili.com/video/BV1TM411P7Zm"
+let headers = {
+    "referer": Url,
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36 Edg/111.0.1661.62"
+}
+function getWebContent(url) {
+    return new Promise((reslove, reject) => {
+        axios.get(url).then((response) => {
+            if (response.status != 200) {
+                reject(error)
+            } else {
+                reslove(response.data)
+            }
+        })
+    }).then(response => {
+        getContent(response)
+    }).catch(error => {
+        console.log(error)
+    })
+}
+function getContent(content) {
+    $ = cheerio.load(content);
+    let windowInfo = $("#setSizeStyle+script").text();
+    let playInfo = JSON.parse(windowInfo.replace(/window.__playinfo__=/igs, ""));
+    let baseVideoUrl = playInfo.data.dash.video[0].baseUrl;
+    let baseAudioUrl = playInfo.data.dash.audio[0].baseUrl;
+    DownLoadVideo(baseVideoUrl);
+    DownLoadAudio(baseAudioUrl);
+}
+function DownLoadVideo(url) {
+    axios.get(url, {
+        headers: headers,
+        responseType: "stream"
+    }).then(response => {
+        let fileStream = fs.createWriteStream('./舞蹈.mp4', { flags: "w" });
+        response.data.pipe(fileStream);
+    }).catch(error => {
+        console.log(error);
+    })
+}
+function DownLoadAudio(url) {
+    axios.get(url, {
+        headers: headers,
+        responseType: 'stream'
+    }).then(response => {
+        let fileStream = fs.createWriteStream('./音乐.mp3',{flags:'w'});
+        response.data.pipe(fileStream);
+        console.log('下载完成')
+    }).catch(error => {
+        console.log(error);
+    })
+}
+getWebContent(Url)
